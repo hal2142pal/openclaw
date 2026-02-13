@@ -1,0 +1,50 @@
+#
+#  Enable scrolling in screen
+#
+cat <<+++ > ~/.screenrc
+defscrollback 5000
+termcapinfo xterm* ti@:te@
++++
+#
+#  Set timezone
+#
+sudo timedatectl set-timezone America/New_York
+#
+# This is run on a Debian VM to install Docker.
+#
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+#
+echo Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+echo Add the user to the docker group
+sudo usermod -a -G docker andreas
+
+echo Setup the OpenClaw gateway
+docker build -t openclaw:local .
+
+#
+#  Start the gateway
+#
+# Load secrets from json file using jq
+if [ -f "secrets.json" ]; then
+    export OPENCLAW_GATEWAY_TOKEN=$(jq -r .OPENCLAW_GATEWAY_TOKEN secrets.json)
+    export CLAUDE_AI_SESSION_KEY=$(jq -r .CLAUDE_AI_SESSION_KEY secrets.json)
+    export CLAUDE_WEB_SESSION_KEY=$(jq -r .CLAUDE_WEB_SESSION_KEY secrets.json)
+    export CLAUDE_WEB_COOKIE=$(jq -r .CLAUDE_WEB_COOKIE secrets.json)
+fi
+
+OPENCLAW_CONFIG_DIR=/home/node/.openclaw \
+OPENCLAW_WORKSPACE_DIR=/home/node/openclaw-workspace \
+docker compose up -d openclaw-gateway
+
+echo All done!

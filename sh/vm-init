@@ -1,0 +1,20 @@
+host=$1
+echo Host: $host
+
+echo "\n*Apt"
+gcloud compute ssh --zone=us-central1-a --command "sudo apt-get update && sudo apt-get install -y git" $host
+echo "\n*Keys"
+(cd; gcloud compute scp --zone=us-central1-a --recurse .ssh/id_ed25519* $host:.ssh)
+gcloud compute ssh --zone=us-central1-a --command 'eval "$(ssh-agent -s)"' $host
+echo "\n*Git"
+gcloud compute ssh --zone=us-central1-a --command "curl --silent https://api.github.com/meta | jq --raw-output '\"github.com \"+.ssh_keys[]' >> ~/.ssh/known_hosts" $host
+gcloud compute ssh --zone=us-central1-a --command "rm -rf claw && git clone git@github.com:/hal2142pal/openclaw.git claw" $host
+echo "\n*Env"
+gcloud compute scp --zone=us-central1-a --recurse secrets.json $host:claw/
+
+# Use latest install script, supersede the repo
+gcloud compute ssh --zone=us-central1-a --command "mkdir -p claw/sh" $host
+gcloud compute scp --zone=us-central1-a --recurse sh/vm-install $host:claw/sh/
+
+# Run the remote install script
+gcloud compute ssh --zone=us-central1-a --command "cd claw && source sh/vm-install" $host

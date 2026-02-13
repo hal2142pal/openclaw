@@ -9,12 +9,20 @@ RUN corepack enable
 WORKDIR /app
 
 ARG OPENCLAW_DOCKER_APT_PACKAGES=""
-RUN if [ -n "$OPENCLAW_DOCKER_APT_PACKAGES" ]; then \
-      apt-get update && \
-      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $OPENCLAW_DOCKER_APT_PACKAGES && \
-      apt-get clean && \
-      rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*; \
-    fi
+PACKAGES="${OPENCLAW_DOCKER_APT_PACKAGES}\
+  sudo git curl wget vim \
+  python3 python3-full python3-pip \
+  chromium chromium-driver \
+  libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+  libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 \
+  libxrandr2 libgbm1 libasound2 \
+  "
+RUN apt-get update && \
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $PACKAGES && \
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* && \
+  echo "node ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/node && \
+  chmod 0440 /etc/sudoers.d/node
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY ui/package.json ./ui/package.json
